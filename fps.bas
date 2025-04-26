@@ -7,10 +7,12 @@ $Resize:On
 '$Include:'packets.bi'
 
 $Let GL = 1
-Const DEBUG = 1
+Const DEBUG = 0
 Dim Shared LOG_FILE_NAME$: LOG_FILE_NAME$ = "log_" + Left$(Date$, 2) + Mid$(Date$, 4, 2) + Right$(Date$, 4) + Left$(Time$, 2) + Mid$(Time$, 4, 2) + Right$(Time$, 2) + ".txt"
 
-Const Player_Obesity = 1
+Dim Shared Chat$: Chat$ = ListStringNew$
+
+Const Player_Obesity = 1.41
 Dim Shared MoveSpeed As Single
 
 Randomize Timer
@@ -41,7 +43,7 @@ Dim As Integer I, F, X, Y
 '----- Load Textures -----
 FaceTexture = load_face&
 GroundTexture = _NewImage(1024, 1024, 32)
-For X = 0 To 1023 Step 16: For Y = 0 To 1023 Step 16: _PutImage (X, Y), load_grass&, GroundTexture: Next Y, X
+For X = 0 To 1023 Step 16: For Y = 0 To 1023 Step 16: _PutImage (X, Y), load_stone_bricks&, GroundTexture: Next Y, X
 Texture = load_texture&
 $If GL Then
     __GL_GENERATE_TEXTURE = -1: While __GL_GENERATE_TEXTURE: Wend
@@ -73,7 +75,7 @@ CLIENT& = _OpenClient("TCP/IP:16000:localhost")
 If CLIENT& = 0 Then
     ConnectToServer:
     InputDialog "Enter Server Address", ADDRESS$, BACKGROUND&
-    If InStr(ADDRESS$, ":") Then CLIENT& = _OpenClient("TCP/IP:" + ADDRESS$) Else CLIENT& = _OpenClient("TCP/IP:" + ADDRESS$ + ":localhost")
+    If InStr(ADDRESS$, ":") Then CLIENT& = _OpenClient("TCP/IP:" + ADDRESS$) Else CLIENT& = _OpenClient("TCP/IP:16000:" + ADDRESS$)
 End If
 If CLIENT& Then _Echo "Connected to " + _ConnectionAddress(CLIENT&)
 If CLIENT& = 0 Then
@@ -107,9 +109,9 @@ Do: _Limit 60: On Error GoTo ErrHandler
     End If
 
     isPaused = IIF(_WindowHasFocus, isPaused, 1)
-    If _KeyDown(80) Or _KeyDown(112) Then
+    If _KeyDown(27) Or _KeyDown(80) Or _KeyDown(112) Then
         isPaused = Not isPaused
-        While _KeyDown(80) Or _KeyDown(112): Wend
+        While _KeyDown(27) Or _KeyDown(80) Or _KeyDown(112): Wend
     End If
     If isPaused Then _MouseShow Else _MouseHide
 
@@ -135,6 +137,8 @@ Do: _Limit 60: On Error GoTo ErrHandler
     Next I
     '-----------------------------------------------
 
+    If Players(CurrentPlayer).Health <= 0 Then PlayerRandomPosition
+
     If isPaused Then _Continue
 
     While _MouseInput
@@ -144,9 +148,10 @@ Do: _Limit 60: On Error GoTo ErrHandler
             _MouseMove _Width / 2, _Height / 2
         $End If
     Wend
-    NEWFOV = IIF(_MouseButton(2) Or _KeyDown(67) Or _KeyDown(99), 30, 90)
-    FOV = FOV + Sgn(NEWFOV - FOV) * 4
-    If _MouseButton(1) And Players(CurrentPlayer).Mode = PLAYER_MODE_PLAYER Or _KeyDown(32) Then FireBullet
+    NEWFOV = 90 + (_KeyDown(67) Or _KeyDown(99)) * 30 + (_KeyDown(86) Or _KeyDown(118)) * 30 + (_KeyDown(88) Or _KeyDown(120)) * 20
+    'NEWFOV = IIF(_MouseButton(2) Or _KeyDown(67) Or _KeyDown(99), 30, 90)
+    FOV = FOV + DistanceConstraint(NEWFOV - FOV, 8)
+    If (_MouseButton(1) Or _KeyDown(32)) And Players(CurrentPlayer).Mode = PLAYER_MODE_PLAYER Then FireBullet
 
     MoveSpeed = IIF(Players(CurrentPlayer).Mode = PLAYER_MODE_PLAYER, 5, 10)
     Select Case Players(CurrentPlayer).Mode
@@ -155,14 +160,16 @@ Do: _Limit 60: On Error GoTo ErrHandler
             If _KeyDown(65) Or _KeyDown(97) Then PlayerMove Players(CurrentPlayer).Angle.X + 180, 0.08 'A
             If _KeyDown(68) Or _KeyDown(100) Then PlayerMove Players(CurrentPlayer).Angle.X, 0.08 'D
             Players(CurrentPlayer).Position.Y = 0.5
-        Case PLAYER_MODE_SPECTATOR: If _KeyDown(87) Or _KeyDown(119) Then PlayerMove Players(CurrentPlayer).Angle.X - 90, 0.64 'W
+        Case PLAYER_MODE_SPECTATOR: If _KeyDown(87) Or _KeyDown(119) Then PlayerMove Players(CurrentPlayer).Angle.X - 90, 0.16 'W
             If _KeyDown(83) Or _KeyDown(115) Then PlayerMove Players(CurrentPlayer).Angle.X + 90, 0.16 'S
             If _KeyDown(65) Or _KeyDown(97) Then PlayerMove Players(CurrentPlayer).Angle.X + 180, 0.16 'A
             If _KeyDown(68) Or _KeyDown(100) Then PlayerMove Players(CurrentPlayer).Angle.X, 0.16 'D
             Players(CurrentPlayer).Position.Y = Players(CurrentPlayer).Position.Y + IIF(_KeyDown(32), 0.16, 0)
             Players(CurrentPlayer).Position.Y = Players(CurrentPlayer).Position.Y - IIF(_KeyDown(100304), 0.16, 0)
     End Select
-Loop Until Inp(&H60) = 1
+    If _KeyDown(84) Or _KeyDown(116) Then StartMatch
+    If _KeyDown(89) Or _KeyDown(121) Then EndMatch
+Loop
 System
 
 FPSCounter:
@@ -277,6 +284,15 @@ $If GL Then
         End If
         If DEBUG Then _PrintString (_Width - 80, 0), Str$(SendingPlayerData)
 
+        If ListStringLength(Chat$) > 5 Then
+            ListStringDelete Chat$, 1
+        End If
+        L~& = ListStringLength(Chat$)
+        Color , _RGB32(0, 127)
+        For I = 1 To L~&
+            _PrintString (0, _Height + (I - L~& - 2) * _FontHeight), ListStringGet$(Chat$, I)
+        Next I
+        Color , 0
         _Display
         GFPSCount = GFPSCount + 1
     End Sub
@@ -319,12 +335,20 @@ Sub ParseServer (): Dim As Packet Packet
     Get #CLIENT&, , Packet
     Select Case Packet.CODE
         Case SERVER_CONST_PLAYER_UPDATE
+            If Players(Packet.ID).ReadyToReceive <> Packet.Player.ReadyToReceive Then
+                If Players(Packet.ID).ReadyToReceive = 0 Then ChatNewMessage Packet.Player.Name + " joined" Else ChatNewMessage Players(Packet.ID).Name + " left"
+            End If
             Players(Packet.ID) = Packet.Player
+
+        Case SERVER_CONST_OPPONENT_HEALTH
+            If Players(Packet.ID).TargetedBy <> 0 Then
+                ChatNewMessage Players(Packet.ID).Name + " was shot by " + Players(Players(Packet.ID).TargetedBy).Name
+                If Packet.ID = CurrentPlayer Then PlayerRandomPosition
+            End If
 
         Case SERVER_CONST_START_MATCH
             Players(CurrentPlayer).Mode = PLAYER_MODE_PLAYER
-            NewVec3 Players(CurrentPlayer).Position, Int(62 * Rnd - 31) + 0.5, 0.5, Int(62 * Rnd - 31) + 0.5
-            UpdatePlayers CurrentPlayer
+            PlayerRandomPosition
 
         Case SERVER_CONST_END_MATCH
             Players(CurrentPlayer).Mode = PLAYER_MODE_SPECTATOR
@@ -332,6 +356,33 @@ Sub ParseServer (): Dim As Packet Packet
             UpdatePlayers CurrentPlayer
 
     End Select
+End Sub
+
+Sub StartMatch
+    If CurrentPlayer - 1 Then Exit Sub
+    Dim As Packet Packet
+    Packet.CODE = SERVER_CONST_START_MATCH
+    Put #CLIENT&, , Packet
+End Sub
+Sub EndMatch
+    If CurrentPlayer - 1 Then Exit Sub
+    Dim As Packet Packet
+    Packet.CODE = SERVER_CONST_END_MATCH
+    Put #CLIENT&, , Packet
+End Sub
+
+Sub PlayerWasShot
+    Dim As Packet Packet
+    Packet.CODE = SERVER_CONST_OPPONENT_HEALTH
+    Packet.ID = CurrentPlayer
+    Put #CLIENT&, , Packet
+    PlayerRandomPosition
+End Sub
+
+Sub PlayerRandomPosition
+    Players(CurrentPlayer).Health = 10
+    NewVec3 Players(CurrentPlayer).Position, Int(62 * Rnd - 31) + 0.5, 0.5, Int(62 * Rnd - 31) + 0.5
+    UpdatePlayers CurrentPlayer
 End Sub
 
 Sub UpdatePlayers (__I As _Unsigned Integer)
@@ -346,13 +397,9 @@ Sub PlayerMove (Angle As Single, Speed As Single)
     Static As Single dX, dY
     dX = Cos(_D2R(Angle)) * Speed
     dY = Sin(_D2R(Angle)) * Speed
-    Players(CurrentPlayer).Position.X = Players(CurrentPlayer).Position.X + dX * (getMap(Players(CurrentPlayer).Position.X + Sgn(dX) * Player_Obesity, Players(CurrentPlayer).Position.Z) = 0)
-    Players(CurrentPlayer).Position.Z = Players(CurrentPlayer).Position.Z + dY * (getMap(Players(CurrentPlayer).Position.X, Players(CurrentPlayer).Position.Z + Sgn(dY) * Player_Obesity) = 0)
+    Players(CurrentPlayer).Position.X = Clamp(-30, Players(CurrentPlayer).Position.X - dX, 31)
+    Players(CurrentPlayer).Position.Z = Clamp(-30, Players(CurrentPlayer).Position.Z - dY, 31)
 End Sub
-Function getMap (X As Integer, Y As Integer)
-    If InRange(-32, X, 31) And InRange(-32, Y, 31) Then getMap = Map(X, Y) Else getMap = 0
-    If Players(CurrentPlayer).Mode = PLAYER_MODE_SPECTATOR Or DEBUG Then getMap = 0 'no collision detection
-End Function
 Sub CenterPrint (T$, N): _PrintString (_Width / 2 - Len(T$) * _FontWidth / 2, _Height / 2 + _FontHeight * (N - 0.5)), T$: End Sub
 Sub InputDialog (T$, S$, B&)
     Do
@@ -379,12 +426,22 @@ Sub WriteLog (L$)
     Print #LOG_FILE, L$
     Close #LOG_FILE
 End Sub
-'$Include:'include\clamp.bm'
-'$Include:'include\vector\vector.bm'
-'$Include:'include\inrange.bm'
-'$Include:'include\iif.bm'
+
+Function DistanceConstraint (A, B)
+    DistanceConstraint = IIF(Abs(A) > B, B * Sgn(A), A)
+End Function
+
+Sub ChatNewMessage (MSG$)
+    ListStringAdd Chat$, MSG$
+End Sub
+
+'$Include:'lib\clamp.bm'
+'$Include:'lib\vector\vector.bm'
+'$Include:'lib\inrange.bm'
+'$Include:'lib\iif.bm'
 '$Include:'res\background.png.bi'
-'$Include:'res\grass.png.bi'
+'$Include:'res\stone_bricks.png.bi'
 '$Include:'res\cross.png.bi'
 '$Include:'res\texture.png.bi'
 '$Include:'res\face.png.bi'
+'$Include:'lib\liststring.bas'

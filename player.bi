@@ -1,4 +1,4 @@
-'$Include:'include\vector\vector.bi'
+'$Include:'lib\vector\vector.bi'
 Type Player
     As String * 16 Name
     As _Unsigned Integer TargetedBy

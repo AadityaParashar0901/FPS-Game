@@ -1,0 +1,104 @@
+Sub NewVec2 (__V As Vec2, __X As Single, __Y As Single)
+    __V.X = __X
+    __V.Y = __Y
+End Sub
+Function Vec2Dot (__V1 As Vec2, __V2 As Vec2)
+    Vec2Dot = __V1.X * __V2.X + __V1.Y * __V2.Y
+End Function
+Function Vec2Length (__V As Vec2)
+    Vec2Length = Sqr(__V.X * __V.X + __V.Y * __V.Y)
+End Function
+Function Vec2Angle (__V1 As Vec2, __V2 As Vec2)
+    Vec2Angle = _Acos(Vec2Dot(__V1, __V2) / Vec2Length(__V1) / Vec2Length(__V2))
+End Function
+Sub Vec2Add (__V1 As Vec2, __V2 As Vec2)
+    __V1.X = __V1.X + __V2.X
+    __V1.Y = __V1.Y + __V2.Y
+End Sub
+Sub Vec2Multiply (__V As Vec2, K As Single)
+    __V.X = __V.X * K
+    __V.Y = __V.Y * K
+End Sub
+Sub Vec2MultiplyAdd (__V1 As Vec2, __V2 As Vec2, K As Single)
+    __V1.X = __V1.X + __V2.X * K
+    __V1.Y = __V1.Y + __V2.Y * K
+End Sub
+Sub Vec2Normalize (__V As Vec2)
+    Dim As Single L
+    L = Vec2Length(__V)
+    Vec2Multiply __V, 1 / L
+End Sub
+Function Vec2Dis (__V1 As Vec2, __V2 As Vec2)
+    Vec2Dis = _Hypot(__V1.X - __V2.X, __V1.Y - __V2.Y)
+End Function
+Sub Vec2Rotate (__V As Vec2, __T As Single)
+    Static __TV As Vec2, __CT As Single, __ST As Single
+    __CT = Cos(__T): __ST = Sin(__T)
+    __TV.X = __V.X * -__CT - __V.Y * __ST
+    __TV.Y = __V.X * __ST - __V.Y * __CT
+    __V = __TV
+End Sub
+Function Vec2Equal (__V1 As Vec2, __V2 As Vec2)
+    Vec2Equal = (__V1.X = __V2.X) And (__V1.Y = __V2.Y)
+End Function
+Sub NewVec3 (__V As Vec3, __X As Single, __Y As Single, __Z As Single)
+    __V.X = __X
+    __V.Y = __Y
+    __V.Z = __Z
+End Sub
+Function Vec3Dot (__V1 As Vec3, __V2 As Vec3)
+    Vec3Dot = __V1.X * __V2.X + __V1.Y * __V2.Y + __V1.Z * __V2.Z
+End Function
+Function Vec3Length (__V As Vec3)
+    Vec3Length = Sqr(__V.X * __V.X + __V.Y * __V.Y + __V.Z * __V.Z)
+End Function
+Function Vec3Angle (__V1 As Vec3, __V2 As Vec3)
+    Vec3Angle = _Acos(Vec3Dot(__V1, __V2) / Vec3Length(__V1) / Vec3Length(__V2))
+End Function
+Sub Vec3Add (__V1 As Vec3, __V2 As Vec3)
+    __V1.X = __V1.X + __V2.X
+    __V1.Y = __V1.Y + __V2.Y
+    __V1.Z = __V1.Z + __V2.Z
+End Sub
+Sub Vec3Multiply (__V As Vec3, K As Single)
+    __V.X = __V.X * K
+    __V.Y = __V.Y * K
+    __V.Z = __V.Z * K
+End Sub
+Sub Vec3MultiplyAdd (__V1 As Vec3, __V2 As Vec3, K As Single)
+    __V1.X = __V1.X + __V2.X * K
+    __V1.Y = __V1.Y + __V2.Y * K
+    __V1.Z = __V1.Z + __V2.Z * K
+End Sub
+Sub Vec3Normalize (__V As Vec3)
+    Dim As Single L
+    L = Vec3Length(__V)
+    Vec3Multiply __V, 1 / L
+End Sub
+Function Vec3Dis (__V1 As Vec3, __V2 As Vec3)
+    Vec3Dis = _Hypot(_Hypot(__V1.X - __V2.X, __V1.Y - __V2.Y), __V1.Z - __V2.Z)
+End Function
+Sub Vec3RotateX (__V As Vec3, __T As Single)
+    Static __TV As Vec3, __CT As Single, __ST As Single
+    __CT = Cos(__T): __ST = Sin(__T)
+    __TV.Y = __V.Y * -__CT - __V.Z * __ST
+    __TV.Z = __V.Y * __ST - __V.Z * __CT
+    __V = __TV
+End Sub
+Sub Vec3RotateY (__V As Vec3, __T As Single)
+    Static __TV As Vec3, __CT As Single, __ST As Single
+    __CT = Cos(__T): __ST = Sin(__T)
+    __TV.X = __V.X * -__CT - __V.Z * __ST
+    __TV.Z = __V.X * __ST - __V.Z * __CT
+    __V = __TV
+End Sub
+Sub Vec3RotateZ (__V As Vec3, __T As Single)
+    Static __TV As Vec3, __CT As Single, __ST As Single
+    __CT = Cos(__T): __ST = Sin(__T)
+    __TV.X = __V.X * -__CT - __V.Y * __ST
+    __TV.Y = __V.X * __ST - __V.Y * __CT
+    __V = __TV
+End Sub
+Function Vec3Equal (__V1 As Vec3, __V2 As Vec3)
+    Vec3Equal = (__V1.X = __V2.X) And (__V1.Y = __V2.Y) And (__V1.Z = __V2.Z)
+End Function

@@ -92,7 +92,6 @@ Sub ParseClient (__I As _Unsigned _Byte)
             Print " New User: "; Packet.Player.Name; __I
             Players(__I).Name = Packet.Player.Name
             Players(__I).Mode = PLAYER_MODE_SPECTATOR
-            Players(__I).Health = 10
             UpdatePlayers __I, __I
 
         Case SERVER_CONST_GET_PLAYERS
@@ -111,7 +110,28 @@ Sub ParseClient (__I As _Unsigned _Byte)
             Players(Packet.ID) = Packet.Player
             UpdatePlayers __I, Packet.ID
 
+        Case SERVER_CONST_START_MATCH
+            Start_Match
+
+        Case SERVER_CONST_END_MATCH
+            End_Match
+
+        Case SERVER_CONST_OPPONENT_HEALTH
+            updateplayersaboutmurder __I, Packet.ID
+
     End Select
+End Sub
+Sub updateplayersaboutmurder (__J As _Unsigned _Byte, __K As _Unsigned _Byte)
+    Dim As Packet Packet
+    Dim __I
+    Packet.CODE = SERVER_CONST_OPPONENT_HEALTH
+    Packet.ID = __K
+    Packet.Player = Players(__K)
+    For __I = 1 To TOTALCONNECTIONS
+        If __I = __J Or CONNECTIONS(__I) = 0 Or Players(__I).ReadyToReceive = 0 Then _Continue
+        _PrintString (320, 0), " Updating Connection" + Str$(__I) + " about" + Str$(__J)
+        Put #CONNECTIONS(__I), , Packet
+    Next __I
 End Sub
 Sub UpdatePlayers (__J As _Unsigned _Byte, __K As _Unsigned _Byte) 'notify other players
     Dim As Packet Packet
@@ -142,5 +162,5 @@ Sub End_Match
         Put #CONNECTIONS(__I), , Packet
     Next __I
 End Sub
-'$Include:'include\vector\vector.bm'
-'$Include:'include\iif.bm'
+'$Include:'lib\vector\vector.bm'
+'$Include:'lib\iif.bm'

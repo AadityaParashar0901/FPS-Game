@@ -1,0 +1,3 @@
+Function Min (A, B)
+    Min = -A * (A < B) - B * (A >= B)
+End Function
