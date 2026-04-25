@@ -62,6 +62,7 @@ F = _FreeTimer: On Timer(F, 1) GoSub FPSCounter
 '$Include:'.\server_constants.txt'
 
 CurrentPlayer = 1
+Dim As Player OldPlayer
 
 UserNameDetails: ' Get Username
 BACKGROUND& = load_background&
@@ -116,7 +117,8 @@ Do: _Limit 60: On Error GoTo ErrHandler
     If isPaused Then _MouseShow Else _MouseHide
 
     ParseServer
-    UpdatePlayers CurrentPlayer
+    If Vec3Equal(Players(CurrentPlayer).Position, OldPlayer.Position) = 0 Or Vec2Equal(Players(CurrentPlayer).Angle, OldPlayer.Angle) = 0 Then UpdatePlayers CurrentPlayer
+    OldPlayer = Players(CurrentPlayer)
     '----- Add Player Vertices to Array for GL -----
     For I = LBound(Players) To UBound(Players)
         If Players(I).ReadyToReceive = 0 Or I = CurrentPlayer Then
@@ -254,6 +256,7 @@ $If GL Then
         _glEnableClientState _GL_TEXTURE_COORD_ARRAY
         For I = LBound(Players) To UBound(Players)
             If Players(I).ReadyToReceive = 0 Then _Continue
+            If I = CurrentPlayer Then _Continue
             _glPushMatrix
             '_glTranslatef -Players(I).Position.X, -0.5 - Players(I).Position.Y, -Players(I).Position.Z
             _glVertexPointer 3, _GL_FLOAT, 0, _Offset(PlayerVertices(I * 24 - 23))
